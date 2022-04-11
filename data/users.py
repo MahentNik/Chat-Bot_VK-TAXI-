@@ -8,5 +8,3 @@ class Users(SqlAlchemyBase):
     id = sqlalchemy.Column(sqlalchemy.Integer,
                            primary_key=True, autoincrement=True, nullable=False, unique=True)
     account_id = sqlalchemy.Column(sqlalchemy.Integer, nullable=False, unique=True)
-    name = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=False)
-    surname = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=False)

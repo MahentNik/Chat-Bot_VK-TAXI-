@@ -13,9 +13,9 @@ class Drivers(SqlAlchemyBase):
     surname = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=False)
     location_latitude = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=False)
     location_longitude = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=False)
-    status_of_work_id = user_id = sqlalchemy.Column(sqlalchemy.Integer,
-                                                    sqlalchemy.ForeignKey("driver_status.id"), unique=False,
-                                                    nullable=False)
+    status_of_work_id = sqlalchemy.Column(sqlalchemy.Integer,
+                                          sqlalchemy.ForeignKey("driver_status.id"), unique=False,
+                                          nullable=False)
     class_car_id = sqlalchemy.Column(sqlalchemy.Integer,
                                      sqlalchemy.ForeignKey("class_car.id"), unique=False,
                                      nullable=False)
