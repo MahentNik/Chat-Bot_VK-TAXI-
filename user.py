@@ -13,20 +13,23 @@ class User:
         self.user_id = None
         self.registration_status = False  # пройдена ли регистрация
 
-    def change_registration_status(self):
-        self.registration_status = True
+    def change_registration_status(self, status=True):
+        self.registration_status = status
 
     def give_registration_status(self):
         return self.registration_status
 
     def take_user_id(self, event):
-        self.user_id = str(event.obj['from_id'])
+        self.user_id = str(event.object['from_id'])
 
     def change_user_status(self, status):
         self.user_status = status
 
     def give_user_id(self):
         return self.user_id
+
+    def give_user_message(self, event):
+        return event.object.message['text']
 
     def give_user_status(self):
         return self.user_status
@@ -51,7 +54,7 @@ class User:
 
     def add_to_data_base(self, session):
         if self.user_status == first_user_status:
-            session.add(user)
+            pass
         elif self.user_status == second_user_status:
-            session.add(user)
+            pass
         session.commit()
