@@ -9,21 +9,32 @@ from request import RequestDriver
 TOKEN = "44800dbb397fec66933604dea75498f5bce42c0fa027e8506f99e1af7578f2fb4948c7fe2a210cb75371b"
 ID = "212291557"
 
+s_s = special_symbol = "&"
 first_user_status = "client"
 second_user_status = "driver"
 sp_answers_client = ["закрыть заказ", "узнать информацию о заказе", "новый заказ"]
 client_answers = "\n".join(sp_answers_client)
+sl_answers_client = {"закрыть заказ": "Чтобы закрыть заказ ",
+                     # или обычный id
+                     "узнать информацию о заказе":
+                         "Чтобы узнать информацию о заказе необходимо указать его специальный id (special_id)",
+                     "новый заказ": "Чтобы создать новый заказ необходимо указать"}
 sp_answers_driver = ["закрыть заказ", "узнать информацию о заказе"]
 driver_answers = "\n".join(sp_answers_driver)
+sl_answers_driver = {"закрыть заказ": "Чтобы закрыть заказ необходимо указать его специальный id (special_id)",
+                     "узнать информацию о заказе":
+                         "Чтобы узнать информацию о заказе необходимо указать его специальный id (special_id)"}
 
 
 def main(token, club_id):
     db_session.global_init("db/taxi.db")
-    # add_default_values()
+    #  add_default_values()
 
     vk_session = vk_api.VkApi(token=token)
     longpoll = VkBotLongPoll(vk_session, club_id)
 
+    all_driver_status = give_all_driver_status(True)
+    all_class_car = give_all_class_car(True)
     users_today = {}
 
     for event in longpoll.listen():
@@ -44,13 +55,14 @@ def main(token, club_id):
                                          """, random_id=random.randint(0, 2 ** 64))
             users_today[event.obj['from_id']] = pre_user
         if event.type == VkBotEventType.MESSAGE_NEW:
+            vk = vk_session.get_api()
             user_id = event.object.message["from_id"]
             user = users_today[user_id]
             user_message = user.give_user_message(event)
             if user_message.lower() == "!пользователь":
                 user.change_user_status(first_user_status)
+                user.change_function_work_status(False)
                 db_sess = db_session.create_session()
-                vk = vk_session.get_api()
                 if user.check_data_base(db_sess):
                     user.change_registration_status()
                 else:
@@ -64,8 +76,8 @@ def main(token, club_id):
                                  random_id=random.randint(0, 2 ** 64))
             elif user_message.lower() == "!водитель":
                 user.change_user_status(second_user_status)
+                user.change_function_work_status(False)
                 db_sess = db_session.create_session()
-                vk = vk_session.get_api()
                 if user.check_data_base(db_sess):
                     user.change_registration_status()
                     vk.messages.send(user_id=user.give_user_id(),
@@ -89,75 +101,171 @@ def main(token, club_id):
                                      3) Ваш режим работы.
                                      """, random_id=random.randint(0, 2 ** 64))
                     vk.messages.send(user_id=user.give_user_id(),
-                                     message="""Формат ввода: Все в том порядке, как было указано выше и через ' / ':
-                                     страна город улица дом / класс вашего авто (эконом, бизнес, комфорт...) /
-                                     смена в которую вы будете работать (дневная, ночная)""",
+                                     message=f"""Все в том порядке, как было указано и через спец. символ - {s_s}.
+                                        Формат ввода:
+                                        страна город улица дом (для точности) {s_s}
+                                        класс вашего авто ({all_class_car}) {s_s}
+                                        смена в которую вы будете работать ({all_driver_status})""",
                                      random_id=random.randint(0, 2 ** 64))
+            elif user.give_status_special_answers("first"):
+                user.change_status_special_answer("first", False)
+                request = user.give_request_driver()
+                if user_message.lower() == "да":
+                    user.change_registration_status()
+                    request.add_driver_info(user, vk)
+                    vk.messages.send(user_id=user.give_user_id(),
+                                     message="""Отлично, вы зарегистрировались."""
+                                     , random_id=random.randint(0, 2 ** 64))
+                    vk.messages.send(user_id=user.give_user_id(),
+                                     message=f"""У водителя есть несколько функций на выбор
+                                                     (
+                                                     {driver_answers}
+                                                     )"""
+                                     , random_id=random.randint(0, 2 ** 64))
+                    user.change_request_driver(None)
+                elif user_message.lower() == "нет":
+                    vk.messages.send(user_id=user.give_user_id(),
+                                     message="""Тогда вам придется ввести информацию занова.
+                                     Итам, мне необходимо узнать:
+                                                1) Адресс вашего проживания;
+                                                2) К какому классу относится ваш автомобиль;
+                                                3) Ваш режим работы.
+                                                """, random_id=random.randint(0, 2 ** 64))
+                    vk.messages.send(user_id=user.give_user_id(),
+                                     message=f"""Все в том порядке, как было указано и через спец. символ - {s_s}.
+                                                            Формат ввода:
+                                                            страна город улица дом (для точности) {s_s}
+                                                            класс вашего авто ({all_class_car}) {s_s}
+                                                            смена в которую вы будете работать ({all_driver_status})""",
+                                     random_id=random.randint(0, 2 ** 64))
+                else:
+                    user.change_status_special_answer("first", True)
+                    vk.messages.send(user_id=user.give_user_id(),
+                                     message=f"""Позвольте я повторю.
+                                                 Вы проживаете: {request.give_address()}
+                                                 Ваш класс авто: {request.give_class_car()}
+                                                Ваша смена: {request.give_driver_status()}
+                                                СЛЕДУЕТ ОТВЕЧАТЬ
+                                                (Да/Нет)
+                                                 """, random_id=random.randint(0, 2 ** 64))
             elif not user.give_user_status():
-                vk = vk_session.get_api()
                 vk.messages.send(user_id=user.give_user_id(),
                                  message="Повторяю вопрос, кто вы? Следует отвечать (!водитель/!пользователь)",
                                  random_id=random.randint(0, 2 ** 64))
-            elif not user.give_registration_status and user.give_user_status() == second_user_status:
-                vk = vk_session.get_api()
-                address, class_car, driver_status_of_work = work_with_text(user_message)
-                request = RequestDriver()
-                latitude, longitude = request.find_latitude_longitude(address)
-                status_class_car = request.check_class_car(class_car)
-                status_of_driver_status_of_work = request.check_driver_status_of_work(driver_status_of_work)
-                if latitude and longitude and status_class_car and status_of_driver_status_of_work:
-                    user.change_registration_status()
-                    request.add_driver_info(latitude, longitude, status_class_car, status_of_driver_status_of_work)
-                    vk.messages.send(user_id=user.give_user_id(),
-                                     message="Данные корректны. Вы зарегистрировались.",
-                                     random_id=random.randint(0, 2 ** 64))
-                    vk.messages.send(user_id=user.give_user_id(),
-                                     message=f"""У водителя есть несколько функций на выбор 
-                                                     (
-                                                     {driver_answers}
-                                                     )""",
-                                     random_id=random.randint(0, 2 ** 64))
+            elif not user.give_registration_status() and user.give_user_status() == second_user_status:
+                if work_with_text(user_message):
+                    address, class_car, driver_status_of_work = work_with_text(user_message)
+                    request = RequestDriver(class_car, driver_status_of_work)
+                    if request.find_address(address):
+                        res_address = request.find_address(address)
+                        if class_car in give_all_class_car(False):
+                            if driver_status_of_work in give_all_driver_status(False):
+                                user.change_status_special_answer("first", True)
+                                user.change_request_driver(request)
+                                message = f"""Позвольте я повторю.
+                                                        Вы проживаете: {res_address}
+                                                        Ваш класс авто: {class_car}
+                                                        Ваша смена: {driver_status_of_work}
+                                                        (Да/Нет)
+                                                        """
+                                vk.messages.send(user_id=user.give_user_id(),
+                                                 message=message,
+                                                 random_id=random.randint(0, 2 ** 64))
+                            else:
+                                vk.messages.send(user_id=user.give_user_id(),
+                                                 message=f"""Введена неккоректная смена работы.
+                                                У вас нет доступа добавлять новую смену. Выбирайте из предложенных:
+                                                        ({all_driver_status})
+                                                        """,
+                                                 random_id=random.randint(0, 2 ** 64))
+                                vk.messages.send(user_id=user.give_user_id(),
+                                                 message="""Попробуйте еще раз""",
+                                                 random_id=random.randint(0, 2 ** 64))
+                        else:
+                            vk.messages.send(user_id=user.give_user_id(),
+                                             message=f"""Введен неккоректный тип автомобиля.
+                                                        У вас нет доступа добавлять новый. Выбирайте из предложенных:
+                                                        ({all_class_car})
+                                                        """,
+                                             random_id=random.randint(0, 2 ** 64))
+                            vk.messages.send(user_id=user.give_user_id(),
+                                             message="""Попробуйте еще раз""",
+                                             random_id=random.randint(0, 2 ** 64))
+                    else:
+                        vk.messages.send(user_id=user.give_user_id(),
+                                         message="Введен некорректный адрес!",
+                                         random_id=random.randint(0, 2 ** 64))
+                        vk.messages.send(user_id=user.give_user_id(),
+                                         message="""Попробуйте еще раз""",
+                                         random_id=random.randint(0, 2 ** 64))
                 else:
                     vk.messages.send(user_id=user.give_user_id(),
                                      message="Некорректно введены данные!",
                                      random_id=random.randint(0, 2 ** 64))
                     vk.messages.send(user_id=user.give_user_id(),
-                                     message="""Формат ввода: Все в том порядке, как было указано выше и через ' / ':
-                                            страна город улица дом / класс вашего авто (эконом, бизнес, комфорт...) /
-                                            смена в которую вы будете работать (дневная, ночная)""",
+                                     message=f"""Все в том порядке, как было указано и через спец. символ - {s_s}.
+                                        Формат ввода:
+                                        страна город улица дом {s_s}
+                                        класс вашего авто ({all_class_car}) {s_s}
+                                        смена в которую вы будете работать ({all_driver_status})""",
                                      random_id=random.randint(0, 2 ** 64))
                     vk.messages.send(user_id=user.give_user_id(),
                                      message="""Попробуйте еще раз""",
                                      random_id=random.randint(0, 2 ** 64))
-            elif user.give_user_status() and user.give_registration_status():
-                vk = vk_session.get_api()
+            elif user.give_user_status() and user.give_registration_status() and not user.give_function_work_status()\
+                    and True:
                 if user.give_user_status() == first_user_status:
-                    if user_message.lower() in sp_answers_client:
+                    if user_message.lower() in sl_answers_client:
+                        user.change_function_work_status(True)
                         vk.messages.send(user_id=user.give_user_id(),
-                                         message=f"""CLIENTCLIENT YESYES""",
+                                         message=f"""{sl_answers_client[user_message.lower()]}""",
                                          random_id=random.randint(0, 2 ** 64))
                     else:
                         vk.messages.send(user_id=user.give_user_id(),
                                          message=f"""CLIENT:Некорректно введены данные! Попробуйте еще раз.
-                                                 Достумные возможность:
+                                                 Достумные возможности:
                                                  {client_answers}""",
                                          random_id=random.randint(0, 2 ** 64))
                 elif user.give_user_status() == second_user_status:
-                    if user_message.lower() in sp_answers_driver:
+                    if user_message.lower() in sl_answers_driver:
+                        user.change_function_work_status(True)
                         vk.messages.send(user_id=user.give_user_id(),
-                                         message=f"""DRIVERDRIVER YESYES""",
+                                         message=f"""{sl_answers_driver[user_message.lower()]}""",
                                          random_id=random.randint(0, 2 ** 64))
                     else:
                         vk.messages.send(user_id=user.give_user_id(),
                                          message=f"""DRIVER:Некорректно введены данные! Попробуйте еще раз.
-                                                                         Достумные возможность:
+                                                                         Достумные возможности:
                                                                          {driver_answers}""",
                                          random_id=random.randint(0, 2 ** 64))
+            elif user.give_function_work_status():
+                pass
 
 
 def work_with_text(text):
-    address, class_car, driver_status_of_work = text.split(" / ")
+    try:
+        address, class_car, driver_status_of_work = text.split(special_symbol)
+    except Exception:
+        return None
     return address, class_car, driver_status_of_work
+
+
+def give_all_driver_status(status):
+    session = db_session.create_session()
+    request = session.query(DriverStatus.name).all()
+    if status:
+        return ", ".join(list(map(lambda x: x[0], request)))
+    else:
+        return list(map(lambda x: x[0], request))
+
+
+def give_all_class_car(status):
+    session = db_session.create_session()
+    request = session.query(ClassCar.name).all()
+    if status:
+        return ", ".join(list(map(lambda x: x[0], request)))
+    else:
+        return list(map(lambda x: x[0], request))
 
 
 def calculate_distance(a, b):

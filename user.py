@@ -11,10 +11,35 @@ class User:
     def __init__(self):
         self.user_status = None
         self.user_id = None
+        self.special_answers_activated = {
+            "first": False,
+            "second": False,
+            "third": False
+        }
+        self.function_work_status = False
         self.registration_status = False  # пройдена ли регистрация
+        self.request_driver = None
+
+    def change_request_driver(self, request):
+        self.request_driver = request
+
+    def give_request_driver(self):
+        return self.request_driver
+
+    def change_status_special_answer(self, answer, status):
+        self.special_answers_activated[answer] = status
+
+    def give_status_special_answers(self, answer):
+        return self.special_answers_activated[answer]
 
     def change_registration_status(self, status=True):
         self.registration_status = status
+
+    def change_function_work_status(self, status):
+        self.function_work_status = status
+
+    def give_function_work_status(self):
+        return self.function_work_status
 
     def give_registration_status(self):
         return self.registration_status
@@ -53,8 +78,8 @@ class User:
             return False
 
     def add_to_data_base(self, session):
-        if self.user_status == first_user_status:
-            pass
-        elif self.user_status == second_user_status:
-            pass
-        session.commit()
+        if self.give_user_status() == first_user_status:
+            u = Users()
+            u.account_id = self.give_user_id()
+            session.add(u)
+            session.commit()

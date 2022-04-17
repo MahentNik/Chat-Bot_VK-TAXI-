@@ -10,7 +10,6 @@ class Drivers(SqlAlchemyBase):
                            primary_key=True, autoincrement=True, unique=True, nullable=False)
     account_id = sqlalchemy.Column(sqlalchemy.Integer, nullable=True, unique=True)
     name = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=False)
-    surname = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=False)
     location_latitude = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=False)
     location_longitude = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=False)
     status_of_work_id = sqlalchemy.Column(sqlalchemy.Integer,
@@ -21,4 +20,4 @@ class Drivers(SqlAlchemyBase):
                                      nullable=False)
     status_on_receipt_id = sqlalchemy.Column(sqlalchemy.Integer,
                                              sqlalchemy.ForeignKey("driver_status_in_receipt.id"), unique=False,
-                                             nullable=False)
+                                             nullable=False, default=2)
