@@ -27,12 +27,12 @@ def main(token, club_id):
     client_answers = "\n".join(sp_answers_client)
     sp_answers_driver = ["закрыть заказ", "узнать информацию о заказе"]
     driver_answers = "\n".join(sp_answers_driver)
-    sl_answers_driver = {"закрыть заказ": "Чтобы закрыть заказ необходимо указать его специальный id (special_id)",
+    sl_answers_driver = {"закрыть заказ": "Чтобы закрыть заказ указать его id",
                          "узнать информацию о заказе":
-                             "Чтобы узнать информацию о заказе необходимо указать его специальный id (special_id)"}
+                             "Чтобы узнать информацию о заказе необходимо указать его id"}
     sl_answers_client = {"закрыть заказ": "Чтобы закрыть заказ указать его id",
                          "узнать информацию о заказе":
-                             "Чтобы узнать информацию о заказе необходимо указать его id ",
+                             "Чтобы узнать информацию о заказе необходимо указать его id",
                          "новый заказ": f"""Чтобы создать новый заказ необходимо указать:
                          1) Адрес вашего местанахождения (откуда вы поедите)
                          2) Адрес куда вы поедите (конечный пункт)
@@ -60,7 +60,7 @@ def main(token, club_id):
                                  message=f"""Кто вы?
                                             (!Пользователь/!Водитель)
                                              """, random_id=random.randint(0, 2 ** 64))
-                users_today[pre_user.give_user_id()] = pre_user
+                users_today[event.obj['from_id']] = pre_user
         if event.type == VkBotEventType.MESSAGE_NEW:
             vk = vk_session.get_api()
             if event.object.message["from_id"] not in users_today:
@@ -206,8 +206,8 @@ def main(token, club_id):
                             else:
                                 vk.messages.send(user_id=user.give_user_id(),
                                                  message=f"""Введен неккоректный тип автомобиля.
-                                                            У вас нет доступа добавлять новый. Выбирайте из предложенных:
-                                                            ({all_class_car})
+                                                    У вас нет доступа добавлять новый. Выбирайте из предложенных:
+                                                    ({all_class_car})
                                                             """,
                                                  random_id=random.randint(0, 2 ** 64))
                                 vk.messages.send(user_id=user.give_user_id(),
