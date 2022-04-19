@@ -44,6 +44,9 @@ class User:
     def give_registration_status(self):
         return self.registration_status
 
+    def add_user_id(self, i):
+        self.user_id = i
+
     def take_user_id(self, event):
         self.user_id = str(event.object['from_id'])
 

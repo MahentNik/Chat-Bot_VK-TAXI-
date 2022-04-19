@@ -13,7 +13,6 @@ class Receipt(SqlAlchemyBase):
     status_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey("receipt_status.id"))
     user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"))
     cost = sqlalchemy.Column(sqlalchemy.Float, nullable=False, unique=False)
-    special_id = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=True)
     first_place_latitude = sqlalchemy.Column(sqlalchemy.Integer, nullable=False, unique=False)
     first_place_longitude = sqlalchemy.Column(sqlalchemy.Integer, nullable=False, unique=False)
     second_place_latitude = sqlalchemy.Column(sqlalchemy.String, nullable=False, unique=False)

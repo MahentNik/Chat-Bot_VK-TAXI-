@@ -4,6 +4,7 @@ from data import db_session
 from data.class_car import ClassCar
 from data.driver_status import DriverStatus
 
+
 class RequestDriver:
     def __init__(self, class_car, driver_status_of_work):
         self.address = ""
