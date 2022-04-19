@@ -16,9 +16,26 @@ class User:
             "second": False,
             "third": False
         }
+        self.client_answers_activated = {
+            "first": False,
+            "second": False,
+            "third": False
+        }
+        self.driver_answers_activated = {
+            "first": False,
+            "second": False,
+            "third": False
+        }
         self.function_work_status = False
         self.registration_status = False  # пройдена ли регистрация
         self.request_driver = None
+        self.special_request = None
+
+    def give_special_request(self):
+        return self.special_request
+
+    def change_special_request(self, request):
+        self.special_request = request
 
     def change_request_driver(self, request):
         self.request_driver = request
@@ -28,6 +45,18 @@ class User:
 
     def change_status_special_answer(self, answer, status):
         self.special_answers_activated[answer] = status
+
+    def change_status_cl_dr_answers(self, answer, status):
+        if self.give_user_status() == first_user_status:
+            self.client_answers_activated[answer] = status
+        elif self.give_user_status() == second_user_status:
+            self.driver_answers_activated[answer] = status
+
+    def give_status_cl_dr_answers(self, answer):
+        if self.give_user_status() == first_user_status:
+            return self.client_answers_activated[answer]
+        elif self.give_user_status() == second_user_status:
+            return self.driver_answers_activated[answer]
 
     def give_status_special_answers(self, answer):
         return self.special_answers_activated[answer]
