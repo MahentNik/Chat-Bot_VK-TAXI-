@@ -30,9 +30,23 @@ class DriverRequest:
         except Exception:
             return None
         if res:
-            return self.get_info_about_receipt(res)
+            return self.get_receipt_info(res)
         else:
             return None
+
+    def get_receipt_info(self, receipt):
+        r_id = receipt.id
+        r_status = receipt.status_id
+        r_user = receipt.user_id
+        cost = receipt.cost
+        a = str(receipt.first_place_latitude), str(receipt.first_place_longitude)
+        b = str(receipt.second_place_latitude), str(receipt.second_place_longitude)
+        first_address = self.find_address(a)
+        second_address = self.find_address(b)
+        date_for_user = receipt.date_need_for_user
+        date_create = receipt.date_now
+        date_close = receipt.date_close
+        return r_id, r_status, r_user, cost, first_address, second_address, date_for_user, date_create, date_close
 
     def third_status(self, message, db_sess):
         pass

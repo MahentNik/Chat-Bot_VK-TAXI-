@@ -195,10 +195,15 @@ def main(token, club_id):
                         user.change_function_work_status(False)
                         user.change_status_cl_dr_answers("third", False)
                         c_request = user.give_special_request()
-                        c_request.add_new_receipt(db_sess, user)
+                        driver_id = c_request.add_new_receipt(db_sess, user)
                         vk.messages.send(user_id=user.give_user_id(),
                                          message="Отлично, вы оформили заказ",
                                          random_id=random.randint(0, 2 ** 64))
+                        if driver_id:
+                            vk.messages.send(user_id=driver_id,
+                                             message=f"""Вас выбрали в качестве водителя!
+                                                     """,
+                                             random_id=random.randint(0, 2 ** 64))
                     elif user_message == "нет":
                         vk.messages.send(user_id=user.give_user_id(),
                                          message="""Тогда вам придется ввести информацию занова.
@@ -355,13 +360,19 @@ def main(token, club_id):
                             if d_request.second_status(user_message, db_sess):
                                 user.change_function_work_status(False)
                                 user.change_status_cl_dr_answers("second", False)
+                                r_id, r_status, r_user, cost, first_address, second_address, \
+                                date_for_user, date_create, date_close = d_request.second_status(user_message, db_sess)
                                 vk.messages.send(user_id=user.give_user_id(),
-                                                 message="""Заказ:
-                                                            id:
-                                                            status:
-                                                            cost:
-                                                            date_time_need:
-                                                            date_time_close:=None
+                                                 message=f"""Заказ:
+                                                            id: {r_id}
+                                                            Статус: {r_status}
+                                                            Пользователь: {r_user}
+                                                            Цена: {cost}
+                                                            Дата заказа: {date_for_user}
+                                                            Дата закрытия: {date_close}
+                                                            Дата создания: {date_create}
+                                                            Откуда: {first_address}
+                                                            Куда: {second_address}
                                                             """, random_id=random.randint(0, 2 ** 64))
                                 give_functions(user, vk, driver_answers, client_answers)
                             else:
@@ -397,14 +408,19 @@ def main(token, club_id):
                             if c_request.second_status(user_message, db_sess):
                                 user.change_function_work_status(False)
                                 user.change_status_cl_dr_answers("second", False)
+                                r_id, r_status, r_driver, cost, first_address, second_address, \
+                                date_for_user, date_create, date_close = c_request.second_status(user_message, db_sess)
                                 vk.messages.send(user_id=user.give_user_id(),
-                                                 message="""Заказ:
-                                                            id:
-                                                            status:
-                                                            driver:
-                                                            cost:
-                                                            date_time_need:
-                                                            date_time_close:=None     
+                                                 message=f"""Заказ:
+                                                            id: {r_id}
+                                                            Статус: {r_status}
+                                                            Водитель: {r_driver}
+                                                            Цена: {cost}
+                                                            Дата заказа: {date_for_user}
+                                                            Дата закрытия: {date_close}
+                                                            Дата создания: {date_create}
+                                                            Откуда: {first_address}
+                                                            Куда: {second_address}
                                                             """, random_id=random.randint(0, 2 ** 64))
                                 give_functions(user, vk, driver_answers, client_answers)
                             else:
@@ -416,6 +432,7 @@ def main(token, club_id):
                         elif user.give_status_cl_dr_answers("third"):
                             if c_request.third_status(user_message, s_s, db_sess):
                                 a_1, a_2, c_car, time, driver, cost = c_request.third_status(user_message, s_s, db_sess)
+                                print(a_1, a_2, c_car, time, driver, cost)
                                 if a_1 and a_2 and c_car and time and driver and cost:
                                     if driver.account_id:
                                         i = driver.account_id
@@ -441,7 +458,7 @@ def main(token, club_id):
                                 else:
                                     vk.messages.send(user_id=user.give_user_id(),
                                                      message="""Неверно введены данные:
-                                                     Возможно не нашеля водитель для вашего заказа или
+                                                     Возможно не нашелся водитель для вашего заказа или
                                                       вы ввели нераспознаваемый адрес или
                                                       у нас нет такого класса авто, подходящего вашим требованиям.
                                                       Приносим свои извинения по этому поводу.

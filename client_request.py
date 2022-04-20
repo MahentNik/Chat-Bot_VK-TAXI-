@@ -43,12 +43,23 @@ class ClientRequest:
         except Exception:
             return None
         if res:
-            return self.get_info_about_receipt(res)
+            return self.get_receipt_info(res)
         else:
             return None
 
-    def get_info_about_receipt(self, res):
-        pass
+    def get_receipt_info(self, receipt):
+        r_id = receipt.id
+        r_status = receipt.status_id
+        r_driver = receipt.driver_id
+        cost = receipt.cost
+        a = str(receipt.first_place_latitude), str(receipt.first_place_longitude)
+        b = str(receipt.second_place_latitude), str(receipt.second_place_longitude)
+        first_address = self.find_address(a)
+        second_address = self.find_address(b)
+        date_for_user = receipt.date_need_for_user
+        date_create = receipt.date_now
+        date_close = receipt.date_close
+        return r_id, r_status, r_driver, cost, first_address, second_address, date_for_user, date_create, date_close
 
     def third_status(self, message, s_s, db_sess):
         try:
@@ -72,7 +83,6 @@ class ClientRequest:
         except Exception:
             return False
         return res_a_1, res_a_2, c_c, date, driver, cost
-
 
     def take_status_driver(self, date):
         given = dt.datetime.strptime(date, "%y/%m/%d %H:%M")
@@ -113,7 +123,7 @@ class ClientRequest:
         distance = self.calculate_distance(a, b)
         k = 10
         cost_class_car = db_sess.query(ClassCar.cost).filter(ClassCar.name == class_car).first()
-        cost = float(distance * k) + min_cost + int(cost_class_car[0])
+        cost = float(distance * k) + min_cost + float(cost_class_car[0])
         cost = math.ceil(cost)
         return cost
 
@@ -154,9 +164,6 @@ class ClientRequest:
             return False
         return la, lo
 
-    def give_latitude_longitude(self, address):
-        pass
-
     def add_new_receipt(self, db_sess, user):
         status_id = db_sess.query(ReceiptStatus.id).filter(ReceiptStatus.name == "в роботе").first()
         status_on_receipt = db_sess.query(DriverStatusInReceipt.id).filter(
@@ -168,6 +175,8 @@ class ClientRequest:
         d = db_sess.query(Drivers).filter(Drivers.id == driver_id).first()
         d.status_on_receipt_id = status_on_receipt[0]
         db_sess.commit()
+
+        driver_account_id = db_sess.query(Drivers.account_id).filter(Drivers.id == driver_id).first()
 
         date = self.receipt_info["date_time"]
         date_time = dt.datetime.strptime(date, "%y/%m/%d %H:%M")
@@ -192,6 +201,10 @@ class ClientRequest:
         db_sess.add(receipt)
         db_sess.commit()
 
+        if driver_account_id:
+            return driver_account_id
+        return False
+
     def change_status_in_receipt(self, db_sess, receipt, receipt_id):
         driver_id = db_sess.query(Receipt.driver_id).filter(Receipt.id == receipt_id[0]).first()
         driver = db_sess.query(Drivers).filter(Drivers.id == driver_id[0]).first()
@@ -209,20 +222,6 @@ class ClientRequest:
         if res != status_receipt_id:
             return True
         return False
-
-    def get_info_about_receipt(self, receipt):
-        r_id = receipt.id
-        r_status = receipt.status_id
-        r_driver = receipt.user_id
-        cost = receipt.cost
-        a = receipt.first_place_latitude, receipt.first_place_longitude
-        b = receipt.second_place_latitude, receipt.second_place_latitude
-        first_address = self.find_address(a)
-        second_address = self.find_address(b)
-        date_for_user = receipt.date_need_for_user
-        date_create = receipt.date_now
-        date_close = receipt.date_close
-        print(r_id, r_status, r_driver, cost, first_address, second_address, date_for_user, date_create, date_close)
 
     def find_address(self, coordinates):
         try:
