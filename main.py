@@ -45,7 +45,7 @@ def main(token, club_id):
                          1) Адрес вашего местанахождения (откуда вы поедите)
                          2) Адрес куда вы поедите (конечный пункт)
                          3) Класс автомобиля из предложенных ({all_class_car})
-                         4) Время к которому вам нужен заказ (год/месяц/число/часы/минуты)
+                         4) Время к которому вам нужен заказ (год-месяц-день часы:минуты)
                             Формат:
                             Адрес_1{s_s}Адрес_2{s_s}Класс авто{s_s}дата""", "third"
                         ]
@@ -95,7 +95,7 @@ def main(token, club_id):
                     user.change_user_status(first_user_status)
                     client_request = ClientRequest()
                     user.change_special_request(client_request)
-                    user.change_function_work_status(False)
+                    roll_back(user)
                     db_sess = db_session.create_session()
                     if user.check_data_base(db_sess):
                         user.change_registration_status()
@@ -112,7 +112,7 @@ def main(token, club_id):
                     user.change_user_status(second_user_status)
                     driver_request = DriverRequest()
                     user.change_special_request(driver_request)
-                    user.change_function_work_status(False)
+                    roll_back(user)
                     db_sess = db_session.create_session()
                     if user.check_data_base(db_sess):
                         user.change_registration_status()
@@ -181,6 +181,36 @@ def main(token, club_id):
                                                      Вы проживаете: {request.give_address()}
                                                      Ваш класс авто: {request.give_class_car()}
                                                     Ваша смена: {request.give_driver_status()}
+                                                    СЛЕДУЕТ ОТВЕЧАТЬ
+                                                    (Да/Нет)
+                                                     """, random_id=random.randint(0, 2 ** 64))
+                elif user.give_status_special_answers("second"):
+                    user.change_status_special_answer("second", False)
+                    request = user.give_special_request()
+                    address_1, address_2, c_car, date, driver, price = request.give_receipt_info()
+                    if user_message == "да":
+                        user.change_function_work_status(False)
+                        user.change_status_cl_dr_answers("third", False)
+                        vk.messages.send(user_id=user.give_user_id(),
+                                         message="Отлично, вы оформили заказ",
+                                         random_id=random.randint(0, 2 ** 64))
+                    elif user_message == "нет":
+                        vk.messages.send(user_id=user.give_user_id(),
+                                         message="""Тогда вам придется ввести информацию занова.
+                                                    """, random_id=random.randint(0, 2 ** 64))
+                        vk.messages.send(user_id=user.give_user_id(),
+                                         message=f"""{sl_answers_client["новый заказ"]}""",
+                                         random_id=random.randint(0, 2 ** 64))
+                    else:
+                        user.change_status_special_answer("second", True)
+                        vk.messages.send(user_id=user.give_user_id(),
+                                         message=f"""Ваш заказ:
+                                                        От: {address_1}
+                                                        Куда: {address_2}
+                                                        Авто: {c_car}
+                                                        Время: {date}
+                                                        Водитель: {driver}
+                                                        Цена: {price}
                                                     СЛЕДУЕТ ОТВЕЧАТЬ
                                                     (Да/Нет)
                                                      """, random_id=random.randint(0, 2 ** 64))
@@ -278,7 +308,18 @@ def main(token, club_id):
                                              random_id=random.randint(0, 2 ** 64))
                 elif user.give_function_work_status():
                     db_sess = db_session.create_session()
-                    if user.give_user_status() == second_user_status:
+                    if user_message == "!отмена":
+                        roll_back(user)
+                        if user.give_user_status() == second_user_status:
+                            vk.messages.send(user_id=user.give_user_id(),
+                                             message=f"""Достумные возможности:
+                                            {driver_answers}""", random_id=random.randint(0, 2 ** 64))
+                        elif user.give_user_status() == first_user_status:
+                            vk.messages.send(user_id=user.give_user_id(),
+                                             message=f"""Достумные возможности:
+                                                                        {client_answers}""",
+                                             random_id=random.randint(0, 2 ** 64))
+                    elif user.give_user_status() == second_user_status:
                         d_request = user.give_special_request()
                         if user.give_status_cl_dr_answers("first"):
                             if d_request.first_status(user_message, db_sess):
@@ -300,8 +341,11 @@ def main(token, club_id):
                                 vk.messages.send(user_id=user.give_user_id(),
                                                  message="""Заказ:
                                                             id:
-                                                            ...    
-                                                            ...    """, random_id=random.randint(0, 2 ** 64))
+                                                            status:
+                                                            cost:
+                                                            date_time_need:
+                                                            date_time_close:=None
+                                                            """, random_id=random.randint(0, 2 ** 64))
                             else:
                                 vk.messages.send(user_id=user.give_user_id(),
                                                  message=f"""Некорректно введены данные, либо у вас нет такого заказа
@@ -337,14 +381,17 @@ def main(token, club_id):
                                 vk.messages.send(user_id=user.give_user_id(),
                                                  message="""Заказ:
                                                             id:
-                                                            ...    
-                                                            ...    
+                                                            status:
+                                                            driver:
+                                                            cost:
+                                                            date_time_need:
+                                                            date_time_close:=None     
                                                             """, random_id=random.randint(0, 2 ** 64))
                             else:
                                 vk.messages.send(user_id=user.give_user_id(),
                                                  message=f"""Некорректно введены данные, либо у вас нет такого заказа
                                                         Попробуйте еще раз.
-                                                     Необходимо указать id заказа""",
+                                                        Необходимо указать id заказа""",
                                                  random_id=random.randint(0, 2 ** 64))
                         elif user.give_status_cl_dr_answers("third"):
                             if c_request.third_status(user_message, s_s):
@@ -364,16 +411,10 @@ def main(token, club_id):
                                                  message=f"""Все верно? Вы готовы оформить заказ?
                                                             (да/нет)""",
                                                  random_id=random.randint(0, 2 ** 64))
+                                user.change_status_special_answer("second", True)
                             else:
                                 vk.messages.send(user_id=user.give_user_id(),
-                                                 message=f"""Некорректно введены данные! Попробуйте еще раз.
-                                                  Необходимо указать
-                                                1) Адрес вашего местанахождения (откуда вы поедите)
-                                                2) Адрес куда вы поедите (конечный пункт)
-                                                3) Класс автомобиля из предложенных ({all_class_car})
-                                                4) Время к которому вам нужен заказ (год/месяц/число/часы/минуты)
-                                                Формат:
-                                                Адрес_1{s_s}Адрес_2{s_s}Класс авто{s_s}даты""",
+                                                 message=sl_answers_client["third"][0],
                                                  random_id=random.randint(0, 2 ** 64))
 
 
@@ -409,6 +450,13 @@ def calculate_distance(a, b):
                                                 + math.cos(math.radians(a[0])) * math.cos(math.radians(b[0]))
                                                 * math.sin((math.radians(b[1]) - math.radians(a[1])) / 2) ** 2))
     return distance
+
+
+def roll_back(user):
+    user.change_function_work_status(False)
+    user.change_status_cl_dr_answers("first", False)
+    user.change_status_cl_dr_answers("second", False)
+    user.change_status_cl_dr_answers("third", False)
 
 
 if __name__ == '__main__':
