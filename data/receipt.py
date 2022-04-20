@@ -1,7 +1,6 @@
 import sqlalchemy
 from .db_session import SqlAlchemyBase
 import datetime
-from sqlalchemy import orm
 
 
 class Receipt(SqlAlchemyBase):

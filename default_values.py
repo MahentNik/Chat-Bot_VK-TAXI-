@@ -20,11 +20,11 @@ def add_default_values():
 
 def fill_receipt_status(db_sess):
     first_receipt_status = ReceiptStatus()
-    first_receipt_status.name = "В роботе"
+    first_receipt_status.name = "в роботе"
     db_sess.add(first_receipt_status)
 
     second_receipt_status = ReceiptStatus()
-    second_receipt_status.name = "Завершен"
+    second_receipt_status.name = "завершен"
     db_sess.add(second_receipt_status)
 
 

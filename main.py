@@ -1,11 +1,11 @@
 import random
-import math
 from default_values import *
 from data import db_session
 from user import *
 from request import RequestDriver
 from client_request import ClientRequest
 from driver_request import DriverRequest
+from data.receipt import Receipt
 
 TOKEN = "44800dbb397fec66933604dea75498f5bce42c0fa027e8506f99e1af7578f2fb4948c7fe2a210cb75371b"
 ID = "212291557"
@@ -17,22 +17,23 @@ s_s = special_symbol = "&"
 
 def main(token, club_id):
     db_session.global_init("db/taxi.db")
-    #  add_default_values()
+    # add_default_values()
 
     vk_session = vk_api.VkApi(token=token)
     longpoll = VkBotLongPoll(vk_session, club_id)
 
     all_driver_status = give_all_driver_status(True)
     all_class_car = give_all_class_car(True)
-    sp_answers_client = ["закрыть заказ", "узнать информацию о заказе", "новый заказ"]
+    sp_answers_client = ["закрыть заказ", "узнать информацию о заказе", "новый заказ", "все заказы"]
     client_answers = "\n".join(sp_answers_client)
-    sp_answers_driver = ["закрыть заказ", "узнать информацию о заказе"]
+    sp_answers_driver = ["закрыть заказ", "узнать информацию о заказе", "все заказы"]
     driver_answers = "\n".join(sp_answers_driver)
     sl_answers_driver = {"закрыть заказ": ["Чтобы закрыть заказ необходимо указать его id",
                                            "first"],
                          "узнать информацию о заказе":
                              ["Чтобы узнать информацию о заказе необходимо указать его id",
-                              "second"]
+                              "second"],
+                         "все заказы": ["", "forth"]
                          }
     sl_answers_client = {"закрыть заказ": [
         "Чтобы закрыть заказ необходимо указать его id", "first"
@@ -45,10 +46,11 @@ def main(token, club_id):
                          1) Адрес вашего местанахождения (откуда вы поедите)
                          2) Адрес куда вы поедите (конечный пункт)
                          3) Класс автомобиля из предложенных ({all_class_car})
-                         4) Время к которому вам нужен заказ (год-месяц-день часы:минуты)
+                         4) Время к которому вам нужен заказ (год(последние 2 цифры)/месяц/день часы:минуты)
                             Формат:
                             Адрес_1{s_s}Адрес_2{s_s}Класс авто{s_s}дата""", "third"
-                        ]
+                        ],
+        "все заказы": ["1234", "forth"]
     }
 
     users_today = {}
@@ -185,12 +187,15 @@ def main(token, club_id):
                                                     (Да/Нет)
                                                      """, random_id=random.randint(0, 2 ** 64))
                 elif user.give_status_special_answers("second"):
+                    db_sess = db_session.create_session()
                     user.change_status_special_answer("second", False)
                     request = user.give_special_request()
                     address_1, address_2, c_car, date, driver, price = request.give_receipt_info()
                     if user_message == "да":
                         user.change_function_work_status(False)
                         user.change_status_cl_dr_answers("third", False)
+                        c_request = user.give_special_request()
+                        c_request.add_new_receipt(db_sess, user)
                         vk.messages.send(user_id=user.give_user_id(),
                                          message="Отлично, вы оформили заказ",
                                          random_id=random.randint(0, 2 ** 64))
@@ -199,17 +204,22 @@ def main(token, club_id):
                                          message="""Тогда вам придется ввести информацию занова.
                                                     """, random_id=random.randint(0, 2 ** 64))
                         vk.messages.send(user_id=user.give_user_id(),
-                                         message=f"""{sl_answers_client["новый заказ"]}""",
+                                         message=f"""{sl_answers_client["новый заказ"][0]}""",
                                          random_id=random.randint(0, 2 ** 64))
                     else:
                         user.change_status_special_answer("second", True)
+                        if driver.account_id:
+                            i = driver.account_id
+                            d = "vk.com/id" + str(i)
+                        else:
+                            d = driver.name
                         vk.messages.send(user_id=user.give_user_id(),
                                          message=f"""Ваш заказ:
                                                         От: {address_1}
                                                         Куда: {address_2}
                                                         Авто: {c_car}
                                                         Время: {date}
-                                                        Водитель: {driver}
+                                                        Водитель: {d}
                                                         Цена: {price}
                                                     СЛЕДУЕТ ОТВЕЧАТЬ
                                                     (Да/Нет)
@@ -282,11 +292,18 @@ def main(token, club_id):
                         and not user.give_function_work_status():
                     if user.give_user_status() == first_user_status:
                         if user_message.lower() in sl_answers_client:
-                            user.change_function_work_status(True)
-                            user.change_status_cl_dr_answers(sl_answers_client[user_message][1], True)
-                            vk.messages.send(user_id=user.give_user_id(),
-                                             message=f"""{sl_answers_client[user_message][0]}""",
-                                             random_id=random.randint(0, 2 ** 64))
+                            if sl_answers_client[user_message][1] == "forth":
+                                db_sess = db_session.create_session()
+                                vk.messages.send(user_id=user.give_user_id(),
+                                                 message=f"""ID всех ваших заказов:
+                                        {give_all_receipts(user, db_sess)}""",
+                                                 random_id=random.randint(0, 2 ** 64))
+                            else:
+                                user.change_function_work_status(True)
+                                user.change_status_cl_dr_answers(sl_answers_client[user_message][1], True)
+                                vk.messages.send(user_id=user.give_user_id(),
+                                                 message=f"""{sl_answers_client[user_message][0]}""",
+                                                 random_id=random.randint(0, 2 ** 64))
                         else:
                             vk.messages.send(user_id=user.give_user_id(),
                                              message=f"""Некорректно введены данные! Попробуйте еще раз.
@@ -295,11 +312,18 @@ def main(token, club_id):
                                              random_id=random.randint(0, 2 ** 64))
                     elif user.give_user_status() == second_user_status:
                         if user_message in sl_answers_driver:
-                            user.change_function_work_status(True)
-                            user.change_status_cl_dr_answers(sl_answers_driver[user_message][1], True)
-                            vk.messages.send(user_id=user.give_user_id(),
-                                             message=f"""{sl_answers_driver[user_message][0]}""",
-                                             random_id=random.randint(0, 2 ** 64))
+                            if sl_answers_driver[user_message][1] == "forth":
+                                db_sess = db_session.create_session()
+                                vk.messages.send(user_id=user.give_user_id(),
+                                                 message=f"""ID всех ваших заказов:
+                                        {give_all_receipts(user, db_sess)}""",
+                                                 random_id=random.randint(0, 2 ** 64))
+                            else:
+                                user.change_function_work_status(True)
+                                user.change_status_cl_dr_answers(sl_answers_driver[user_message][1], True)
+                                vk.messages.send(user_id=user.give_user_id(),
+                                                 message=f"""{sl_answers_driver[user_message][0]}""",
+                                                 random_id=random.randint(0, 2 ** 64))
                         else:
                             vk.messages.send(user_id=user.give_user_id(),
                                              message=f"""Некорректно введены данные! Попробуйте еще раз.
@@ -310,24 +334,17 @@ def main(token, club_id):
                     db_sess = db_session.create_session()
                     if user_message == "!отмена":
                         roll_back(user)
-                        if user.give_user_status() == second_user_status:
-                            vk.messages.send(user_id=user.give_user_id(),
-                                             message=f"""Достумные возможности:
-                                            {driver_answers}""", random_id=random.randint(0, 2 ** 64))
-                        elif user.give_user_status() == first_user_status:
-                            vk.messages.send(user_id=user.give_user_id(),
-                                             message=f"""Достумные возможности:
-                                                                        {client_answers}""",
-                                             random_id=random.randint(0, 2 ** 64))
+                        give_functions(user, vk, driver_answers, client_answers)
                     elif user.give_user_status() == second_user_status:
                         d_request = user.give_special_request()
                         if user.give_status_cl_dr_answers("first"):
-                            if d_request.first_status(user_message, db_sess):
+                            if d_request.first_status(user_message, db_sess, user.give_user_id()):
                                 user.change_function_work_status(False)
                                 user.change_status_cl_dr_answers("first", False)
                                 vk.messages.send(user_id=user.give_user_id(),
                                                  message=f"""Заказ закрыт""",
                                                  random_id=random.randint(0, 2 ** 64))
+                                give_functions(user, vk, driver_answers, client_answers)
                             else:
                                 vk.messages.send(user_id=user.give_user_id(),
                                                  message=f"""Некорректно введены данные, либо у вас нет такого заказа
@@ -346,6 +363,7 @@ def main(token, club_id):
                                                             date_time_need:
                                                             date_time_close:=None
                                                             """, random_id=random.randint(0, 2 ** 64))
+                                give_functions(user, vk, driver_answers, client_answers)
                             else:
                                 vk.messages.send(user_id=user.give_user_id(),
                                                  message=f"""Некорректно введены данные, либо у вас нет такого заказа
@@ -363,11 +381,12 @@ def main(token, club_id):
                     elif user.give_user_status() == first_user_status:
                         c_request = user.give_special_request()
                         if user.give_status_cl_dr_answers("first"):
-                            if c_request.first_status(user_message, db_sess):
+                            if c_request.first_status(user_message, db_sess, user.give_user_id()):
                                 user.change_function_work_status(False)
                                 user.change_status_cl_dr_answers("first", False)
                                 vk.messages.send(user_id=user.give_user_id(),
                                                  message="Заказ закрыт", random_id=random.randint(0, 2 ** 64))
+                                give_functions(user, vk, driver_answers, client_answers)
                             else:
                                 vk.messages.send(user_id=user.give_user_id(),
                                                  message=f"""Некорректно введены данные, либо у вас нет такого заказа
@@ -387,6 +406,7 @@ def main(token, club_id):
                                                             date_time_need:
                                                             date_time_close:=None     
                                                             """, random_id=random.randint(0, 2 ** 64))
+                                give_functions(user, vk, driver_answers, client_answers)
                             else:
                                 vk.messages.send(user_id=user.give_user_id(),
                                                  message=f"""Некорректно введены данные, либо у вас нет такого заказа
@@ -394,27 +414,48 @@ def main(token, club_id):
                                                         Необходимо указать id заказа""",
                                                  random_id=random.randint(0, 2 ** 64))
                         elif user.give_status_cl_dr_answers("third"):
-                            if c_request.third_status(user_message, s_s):
-                                address_1, address_2, c_car, driver, date, price = c_request
-                                vk.messages.send(user_id=user.give_user_id(),
-                                                 message=f"""
-                                                        Ваш заказ:
-                                                        От: {address_1}
-                                                        Куда: {address_2}
-                                                        Авто: {c_car}
-                                                        Время: {date}
-                                                        Водитель: {driver}
-                                                        Цена: {price}
-                                                        """,
-                                                 random_id=random.randint(0, 2 ** 64))
-                                vk.messages.send(user_id=user.give_user_id(),
-                                                 message=f"""Все верно? Вы готовы оформить заказ?
-                                                            (да/нет)""",
-                                                 random_id=random.randint(0, 2 ** 64))
-                                user.change_status_special_answer("second", True)
+                            if c_request.third_status(user_message, s_s, db_sess):
+                                a_1, a_2, c_car, time, driver, cost = c_request.third_status(user_message, s_s, db_sess)
+                                if a_1 and a_2 and c_car and time and driver and cost:
+                                    if driver.account_id:
+                                        i = driver.account_id
+                                        d = "vk.com/id" + str(i)
+                                    else:
+                                        d = driver.name
+                                    vk.messages.send(user_id=user.give_user_id(),
+                                                     message=f"""
+                                                            Ваш заказ:
+                                                            От: {a_1}
+                                                            Куда: {a_2}
+                                                            Авто: {c_car}
+                                                            Время: {time}
+                                                            Водитель: {d}
+                                                            Цена: {cost}
+                                                            """,
+                                                     random_id=random.randint(0, 2 ** 64))
+                                    vk.messages.send(user_id=user.give_user_id(),
+                                                     message=f"""Все верно? Вы готовы оформить заказ?
+                                                                (да/нет)""",
+                                                     random_id=random.randint(0, 2 ** 64))
+                                    user.change_status_special_answer("second", True)
+                                else:
+                                    vk.messages.send(user_id=user.give_user_id(),
+                                                     message="""Неверно введены данные:
+                                                     Возможно не нашеля водитель для вашего заказа или
+                                                      вы ввели нераспознаваемый адрес или
+                                                      у нас нет такого класса авто, подходящего вашим требованиям.
+                                                      Приносим свои извинения по этому поводу.
+                                                     """,
+                                                     random_id=random.randint(0, 2 ** 64))
+                                    vk.messages.send(user_id=user.give_user_id(),
+                                                     message=sl_answers_client["новый заказ"][0],
+                                                     random_id=random.randint(0, 2 ** 64))
                             else:
                                 vk.messages.send(user_id=user.give_user_id(),
-                                                 message=sl_answers_client["third"][0],
+                                                 message="Неверно введены данные",
+                                                 random_id=random.randint(0, 2 ** 64))
+                                vk.messages.send(user_id=user.give_user_id(),
+                                                 message=sl_answers_client["новый заказ"][0],
                                                  random_id=random.randint(0, 2 ** 64))
 
 
@@ -444,19 +485,36 @@ def give_all_class_car(status):
         return list(map(lambda x: x[0], request))
 
 
-def calculate_distance(a, b):
-    radius = 6371
-    distance = 2 * radius * math.asin(math.sqrt(math.sin((math.radians(b[0]) - math.radians(a[0])) / 2) ** 2
-                                                + math.cos(math.radians(a[0])) * math.cos(math.radians(b[0]))
-                                                * math.sin((math.radians(b[1]) - math.radians(a[1])) / 2) ** 2))
-    return distance
-
-
 def roll_back(user):
     user.change_function_work_status(False)
     user.change_status_cl_dr_answers("first", False)
     user.change_status_cl_dr_answers("second", False)
     user.change_status_cl_dr_answers("third", False)
+
+
+def give_functions(user, vk, driver_answers, client_answers):
+    if user.give_user_status() == second_user_status:
+        vk.messages.send(user_id=user.give_user_id(),
+                         message=f"""Достумные возможности:
+                        {driver_answers}""", random_id=random.randint(0, 2 ** 64))
+    elif user.give_user_status() == first_user_status:
+        vk.messages.send(user_id=user.give_user_id(),
+                         message=f"""Достумные возможности:
+                                                    {client_answers}""",
+                         random_id=random.randint(0, 2 ** 64))
+
+
+def give_all_receipts(user, db_sess):
+    if user.give_user_status() == second_user_status:
+        user_id = db_sess.query(Drivers.id).filter(Drivers.account_id == user.give_user_id()).first()
+        request = db_sess.query(Receipt.id).filter(Receipt.driver_id == user_id[0]).all()
+    else:
+        user_id = db_sess.query(Users.id).filter(Users.account_id == user.give_user_id()).first()
+        request = db_sess.query(Receipt.id).filter(Receipt.user_id == user_id[0]).all()
+    if request:
+        return ", ".join(list(map(lambda x: str(x[0]), request)))
+    else:
+        return "У вас нет не одного заказа"
 
 
 if __name__ == '__main__':
