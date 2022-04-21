@@ -175,7 +175,6 @@ class ClientRequest:
         status_id = db_sess.query(ReceiptStatus.id).filter(ReceiptStatus.name == "в роботе").first()
         status_on_receipt = db_sess.query(DriverStatusInReceipt.id).filter(
             DriverStatusInReceipt.name == "занят").first()
-        print(status_on_receipt)
         user_id = db_sess.query(Users.id).filter(Users.account_id == user.give_user_id()).first()
         driver = self.receipt_info["driver"]
         driver_id = int(driver.id)

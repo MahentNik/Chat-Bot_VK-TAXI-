@@ -199,11 +199,14 @@ def main(token, club_id):
                         vk.messages.send(user_id=user.give_user_id(),
                                          message="Отлично, вы оформили заказ",
                                          random_id=random.randint(0, 2 ** 64))
-                        if driver_id:
-                            vk.messages.send(user_id=driver_id,
-                                             message=f"""Вас выбрали в качестве водителя!
-                                                     """,
-                                             random_id=random.randint(0, 2 ** 64))
+                        try:
+                            if driver_id:
+                                vk.messages.send(user_id=driver_id,
+                                                 message=f"""Вас выбрали в качестве водителя!
+                                                         """,
+                                                 random_id=random.randint(0, 2 ** 64))
+                        except Exception:
+                            pass
                     elif user_message == "нет":
                         vk.messages.send(user_id=user.give_user_id(),
                                          message="""Тогда вам придется ввести информацию занова.
