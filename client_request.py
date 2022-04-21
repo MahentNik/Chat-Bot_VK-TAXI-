@@ -43,14 +43,21 @@ class ClientRequest:
         except Exception:
             return None
         if res:
-            return self.get_receipt_info(res)
+            return self.get_receipt_info(res, db_sess)
         else:
             return None
 
-    def get_receipt_info(self, receipt):
+    def get_receipt_info(self, receipt, db_sess):
         r_id = receipt.id
         r_status = receipt.status_id
-        r_driver = receipt.driver_id
+        r_status = db_sess.query(ReceiptStatus.name).filter(ReceiptStatus.id == r_status).first()
+        r_d = receipt.driver_id
+        r_driver = db_sess.query(Drivers.account_id).filter(Drivers.id == r_d).first()
+        if r_driver[0]:
+            r_driver = "vk.com/id" + str(r_driver[0])
+        else:
+
+            r_driver = db_sess.query(Drivers.name).filter(Drivers.id == r_d).first()[0]
         cost = receipt.cost
         a = str(receipt.first_place_latitude), str(receipt.first_place_longitude)
         b = str(receipt.second_place_latitude), str(receipt.second_place_longitude)
@@ -59,7 +66,7 @@ class ClientRequest:
         date_for_user = receipt.date_need_for_user
         date_create = receipt.date_now
         date_close = receipt.date_close
-        return r_id, r_status, r_driver, cost, first_address, second_address, date_for_user, date_create, date_close
+        return r_id, r_status[0], r_driver, cost, first_address, second_address, date_for_user, date_create, date_close
 
     def third_status(self, message, s_s, db_sess):
         try:

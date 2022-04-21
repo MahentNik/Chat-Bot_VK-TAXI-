@@ -5,6 +5,7 @@ from data.drivers import Drivers
 from data.driver_status_in_receipt import DriverStatusInReceipt
 from data.receipt_status import ReceiptStatus
 import requests
+from data.users import Users
 
 
 class DriverRequest:
@@ -30,14 +31,17 @@ class DriverRequest:
         except Exception:
             return None
         if res:
-            return self.get_receipt_info(res)
+            return self.get_receipt_info(res, db_sess)
         else:
             return None
 
-    def get_receipt_info(self, receipt):
+    def get_receipt_info(self, receipt, db_sess):
         r_id = receipt.id
         r_status = receipt.status_id
+        r_status = db_sess.query(ReceiptStatus.name).filter(ReceiptStatus.id == r_status).first()
         r_user = receipt.user_id
+        r_user = db_sess.query(Users.account_id).filter(Users.id == r_user).first()
+        r_user = "vk.com/id" + str(r_user[0])
         cost = receipt.cost
         a = str(receipt.first_place_latitude), str(receipt.first_place_longitude)
         b = str(receipt.second_place_latitude), str(receipt.second_place_longitude)
@@ -46,7 +50,7 @@ class DriverRequest:
         date_for_user = receipt.date_need_for_user
         date_create = receipt.date_now
         date_close = receipt.date_close
-        return r_id, r_status, r_user, cost, first_address, second_address, date_for_user, date_create, date_close
+        return r_id, r_status[0], r_user, cost, first_address, second_address, date_for_user, date_create, date_close
 
     def third_status(self, message, db_sess):
         pass
